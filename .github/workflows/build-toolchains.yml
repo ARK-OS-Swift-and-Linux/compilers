@@ -1,0 +1,127 @@
+name: Build ARK-OS Custom Toolchains
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  build-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo wget curl
+
+      - name: Checkout Binutils
+        uses: actions/checkout@v4
+        with:
+          repository: gnutools/binutils-gdb
+          path: src/binutils-gdb
+          ref: binutils-2_41-branch
+
+      - name: Checkout GCC
+        uses: actions/checkout@v4
+        with:
+          repository: gcc-mirror/gcc
+          path: src/gcc
+          ref: releases/gcc-13.2.0
+
+      - name: Build Binutils for x86_64
+        run: |
+          mkdir -p build/binutils-x86_64
+          cd build/binutils-x86_64
+          ../../src/binutils-gdb/configure --target=x86_64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/x86_64compilers --with-sysroot --disable-nls --disable-werror
+          make -j$(nproc)
+          make install
+
+      - name: Build GCC for x86_64
+        run: |
+          mkdir -p build/gcc-x86_64
+          cd build/gcc-x86_64
+          ../../src/gcc/configure --target=x86_64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/x86_64compilers --disable-nls --enable-languages=c,c++ --without-headers
+          make all-gcc -j$(nproc)
+          make all-target-libgcc -j$(nproc)
+          make install-gcc
+          make install-target-libgcc
+
+      - name: Archive x86_64 Compilers
+        run: |
+          cd install
+          zip -r compilersx86_64.zip x86_64compilers/
+
+      - name: Upload x86_64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilersx86_64
+          path: install/compilersx86_64.zip
+
+  build-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo wget curl
+
+      - name: Checkout Binutils
+        uses: actions/checkout@v4
+        with:
+          repository: gnutools/binutils-gdb
+          path: src/binutils-gdb
+          ref: binutils-2_41-branch
+
+      - name: Checkout GCC
+        uses: actions/checkout@v4
+        with:
+          repository: gcc-mirror/gcc
+          path: src/gcc
+          ref: releases/gcc-13.2.0
+
+      - name: Build Binutils for aarch64
+        run: |
+          mkdir -p build/binutils-aarch64
+          cd build/binutils-aarch64
+          ../../src/binutils-gdb/configure --target=aarch64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/arm64compilers --with-sysroot --disable-nls --disable-werror
+          make -j$(nproc)
+          make install
+
+      - name: Build GCC for aarch64
+        run: |
+          mkdir -p build/gcc-aarch64
+          cd build/gcc-aarch64
+          ../../src/gcc/configure --target=aarch64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/arm64compilers --disable-nls --enable-languages=c,c++ --without-headers
+          make all-gcc -j$(nproc)
+          make all-target-libgcc -j$(nproc)
+          make install-gcc
+          make install-target-libgcc
+
+      - name: Archive arm64 Compilers
+        run: |
+          cd install
+          zip -r compilersarm64.zip arm64compilers/
+
+      - name: Upload arm64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: compilersarm64
+          path: install/compilersarm64.zip
+
+  release:
+    needs: [build-x86_64, build-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: weekly-${{ github.run_id }}
+          name: Weekly Toolchain Release
+          files: |
+            artifacts/compilersx86_64/compilersx86_64.zip
+            artifacts/compilersarm64/compilersarm64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
