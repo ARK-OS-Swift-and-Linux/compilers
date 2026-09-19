@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir -p build/gcc-x86_64
           cd build/gcc-x86_64
-          ../../src/gcc/configure --target=x86_64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/x86_64compilers --disable-nls --enable-languages=c,c++ --without-headers --disable-shared --disable-threads --with-newlib
+          ../../src/gcc/configure --target=x86_64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/x86_64compilers --disable-nls --enable-languages=c,c++ --without-headers --disable-shared --disable-threads --with-newlib --disable-multilib
           make all-gcc -j$(nproc)
           make all-target-libgcc -j$(nproc)
           make install-gcc
@@ -87,7 +87,7 @@ jobs:
         run: |
           mkdir -p build/gcc-aarch64
           cd build/gcc-aarch64
-          ../../src/gcc/configure --target=aarch64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/arm64compilers --disable-nls --enable-languages=c,c++ --without-headers --disable-shared --disable-threads --with-newlib
+          ../../src/gcc/configure --target=aarch64-linux-gnu --prefix=$GITHUB_WORKSPACE/install/arm64compilers --disable-nls --enable-languages=c,c++ --without-headers --disable-shared --disable-threads --with-newlib --with-arch=armv8-a --with-cpu=cortex-a72 --disable-multilib
           make all-gcc -j$(nproc)
           make all-target-libgcc -j$(nproc)
           make install-gcc
